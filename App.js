@@ -17,15 +17,22 @@ export default function App() {
   const parseTime = () => {
     let hours = parseInt(hour, 10);
     const minutes = parseInt(minute, 10);
-
+  
+    // Convert AM/PM to 24-hour format
     if (ampm === 'PM' && hours < 12) hours += 12;
     if (ampm === 'AM' && hours === 12) hours = 0;
-
+  
     const now = new Date();
-    const alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
-
-    return alarmDate > now ? alarmDate : null;
+    let alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+  
+    // If the selected time is in the past, schedule it for the next day
+    if (alarmDate <= now) {
+      alarmDate.setDate(alarmDate.getDate() + 1);
+    }
+  
+    return alarmDate;
   };
+  
 
   const startCountdown = () => {
     const targetTime = parseTime();
