@@ -88,7 +88,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Simple Alarm App</Text>
+      <Text style={styles.title}>Wellness Alarm App</Text>
 
       {/* Always Visible Selected Time */}
       <Text style={styles.selectedTime}>Selected Time: {hour}:{minute} {ampm}</Text>
