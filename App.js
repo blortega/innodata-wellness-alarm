@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   picker: {
-    width: 120,
+    width: 110,
     height: 80,
     color: '#000',
     backgroundColor: 'transparent',
