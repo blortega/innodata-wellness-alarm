@@ -95,7 +95,7 @@ export default function App() {
 
       {/* Time Picker */}
       <View style={styles.pickerContainer}>
-        <Picker selectedValue={hour} onValueChange={setHour} style={styles.picker} mode="dropdown">
+        <Picker selectedValue={hour} onValueChange={setHour} style={styles.picker} itemStyle={styles.pickerItem} mode="dropdown">
           {generateNumbers(1, 12).map((num) => (
             <Picker.Item key={num} label={num} value={num} />
           ))}
@@ -103,13 +103,13 @@ export default function App() {
 
         <Text style={styles.colon}>:</Text>
 
-        <Picker selectedValue={minute} onValueChange={setMinute} style={styles.picker} mode="dropdown">
+        <Picker selectedValue={minute} onValueChange={setMinute} style={styles.picker} itemStyle={styles.pickerItem} mode="dropdown">
           {generateNumbers(0, 59).map((num) => (
             <Picker.Item key={num} label={num} value={num} />
           ))}
         </Picker>
 
-        <Picker selectedValue={ampm} onValueChange={setAmPm} style={styles.picker} mode="dropdown">
+        <Picker selectedValue={ampm} onValueChange={setAmPm} style={styles.picker} itemStyle={styles.pickerItem} mode="dropdown">
           <Picker.Item label="AM" value="AM" />
           <Picker.Item label="PM" value="PM" />
         </Picker>
@@ -161,10 +161,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   picker: {
-    width: 80,
-    height: 50,
+    width: 110,
+    height: 80,
     color: '#000',
     backgroundColor: 'transparent',
+  },
+  pickerItem: {
+  fontSize: 30, // Increase font size for larger text
+  fontWeight: 'bold',
+  height: 80, // Increase height for larger text
   },
   colon: {
     fontSize: 30,
