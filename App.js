@@ -69,7 +69,7 @@ export default function App() {
 
       setTimeout(async () => {
         await sound.stopAsync();
-      }, 5000); // Stop the sound after 5 seconds
+      }, 30000); // Stop the sound after 5 seconds
     } catch (error) {
       console.error('Error playing sound:', error);
     }
