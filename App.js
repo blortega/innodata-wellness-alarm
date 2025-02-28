@@ -4,9 +4,9 @@ import { Picker } from '@react-native-picker/picker';
 import { Audio } from 'expo-av';
 
 const shiftTimes = {
-  'Shift 1': ['08:00 AM', '10:00 AM'],
-  'Shift 2': ['04:00 PM', '08:00 PM'],
-  'Shift 3': ['02:00 AM', '04:00 AM'],
+  'Shift 1': ['07:55 AM', '09:55 AM'],
+  'Shift 2': ['03:55 PM', '07:55 PM'],
+  'Shift 3': ['01:55 AM', '03:55 AM'],
 };
 
 export default function App() {
@@ -17,6 +17,7 @@ export default function App() {
   const [ampm, setAmPm] = useState('AM');
   const [countdown, setCountdown] = useState(null);
   const [sound, setSound] = useState(null);
+  const [currentShiftIndex, setCurrentShiftIndex] = useState(0); // Track current shift time index
 
   const generateNumbers = (min, max) =>
     Array.from({ length: max - min + 1 }, (_, i) => (min + i).toString().padStart(2, '0'));
@@ -30,11 +31,19 @@ export default function App() {
   };
 
   const startCountdown = () => {
-    let timesToCheck = mode === 'Shift' ? shiftTimes[shift].map(parseTime) : [parseTime(`${hour}:${minute} ${ampm}`)];
-    const now = new Date();
-    let nextAlarm = timesToCheck.find((t) => t > now) || timesToCheck[0];
-    if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
-    setCountdown(nextAlarm - now);
+    if (mode === 'Shift') {
+      const timesToCheck = shiftTimes[shift].map(parseTime);
+      const now = new Date();
+      let nextAlarm = timesToCheck.find((t) => t > now) || timesToCheck[0];
+      if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
+      setCountdown(nextAlarm - now);
+      setCurrentShiftIndex(timesToCheck.indexOf(nextAlarm)); // Set the current shift index
+    } else {
+      const nextAlarm = parseTime(`${hour}:${minute} ${ampm}`);
+      const now = new Date();
+      if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
+      setCountdown(nextAlarm - now);
+    }
   };
 
   useEffect(() => {
@@ -43,7 +52,6 @@ export default function App() {
       if (countdown <= 1000) {
         clearInterval(interval);
         triggerAlarm();
-        setCountdown(null);
       } else {
         setCountdown((prev) => prev - 1000);
       }
@@ -56,7 +64,20 @@ export default function App() {
       const { sound } = await Audio.Sound.createAsync(require('./assets/alarm.mp3'), { shouldPlay: true });
       setSound(sound);
       await sound.playAsync();
-      setTimeout(() => sound.stopAsync(), 30000);
+      setTimeout(() => {
+        sound.stopAsync();
+        setSound(null);
+        if (mode === 'Shift') {
+          // Automatically set the next shift time
+          const timesToCheck = shiftTimes[shift].map(parseTime);
+          const nextIndex = (currentShiftIndex + 1) % timesToCheck.length; // Loop back to the first shift
+          const nextAlarm = timesToCheck[nextIndex];
+          const now = new Date();
+          if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
+          setCountdown(nextAlarm - now);
+          setCurrentShiftIndex(nextIndex); // Update the current shift index
+        }
+      }, 30000); // Stop alarm after 30 seconds
     } catch (error) {
       console.error('Error playing sound:', error);
     }
