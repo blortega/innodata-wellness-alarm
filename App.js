@@ -4,9 +4,9 @@ import { Picker } from '@react-native-picker/picker';
 import { Audio } from 'expo-av';
 
 const shiftTimes = {
-  'Shift 1': ['07:55 AM', '09:55 AM'],
-  'Shift 2': ['03:55 PM', '07:55 PM'],
-  'Shift 3': ['01:55 AM', '03:55 AM'],
+  'Shift 1': ['07:45 AM', '09:45 AM'],
+  'Shift 2': ['03:45 PM', '07:45 PM'],
+  'Shift 3': ['01:45 AM', '03:45 AM'],
 };
 
 export default function App() {
@@ -19,6 +19,7 @@ export default function App() {
   const [sound, setSound] = useState(null);
   const [currentShiftIndex, setCurrentShiftIndex] = useState(0);
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true); // Vibration toggle state
+  const [displayedAlarmTime, setDisplayedAlarmTime] = useState(''); // Stores the displayed alarm time
 
   const generateNumbers = (min, max) =>
     Array.from({ length: max - min + 1 }, (_, i) => (min + i).toString().padStart(2, '0'));
@@ -32,21 +33,28 @@ export default function App() {
   };
 
   const startCountdown = () => {
+    let nextAlarm;
     if (mode === 'Shift') {
       const timesToCheck = shiftTimes[shift].map(parseTime);
       const now = new Date();
-      let nextAlarm = timesToCheck.find((t) => t > now) || timesToCheck[0];
+      nextAlarm = timesToCheck.find((t) => t > now) || timesToCheck[0];
       if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
       setCountdown(nextAlarm - now);
       setCurrentShiftIndex(timesToCheck.indexOf(nextAlarm));
+  
+      // Update displayed alarm time
+      setDisplayedAlarmTime(shiftTimes[shift][timesToCheck.indexOf(nextAlarm)]);
     } else {
-      const nextAlarm = parseTime(`${hour}:${minute} ${ampm}`);
+      nextAlarm = parseTime(`${hour}:${minute} ${ampm}`);
       const now = new Date();
       if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
       setCountdown(nextAlarm - now);
+  
+      // Update displayed alarm time
+      setDisplayedAlarmTime(`${hour}:${minute} ${ampm}`);
     }
   };
-
+  
   useEffect(() => {
     if (countdown === null) return;
     const interval = setInterval(() => {
@@ -78,15 +86,17 @@ export default function App() {
           Vibration.cancel(); // Stop vibration after 30 seconds
         }
         if (mode === 'Shift') {
-          // Automatically set the next shift time
           const timesToCheck = shiftTimes[shift].map(parseTime);
-          const nextIndex = (currentShiftIndex + 1) % timesToCheck.length; // Loop back to the first shift
+          const nextIndex = (currentShiftIndex + 1) % timesToCheck.length;
           const nextAlarm = timesToCheck[nextIndex];
           const now = new Date();
           if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
           setCountdown(nextAlarm - now);
-          setCurrentShiftIndex(nextIndex); // Update the current shift index
-        }
+          setCurrentShiftIndex(nextIndex);
+        
+          // Update displayed alarm time for the next shift
+          setDisplayedAlarmTime(shiftTimes[shift][nextIndex]);
+        }        
       }, 30000); // Stop alarm and vibration after 30 seconds
     } catch (error) {
       console.error('Error playing sound:', error);
@@ -144,18 +154,23 @@ export default function App() {
       </View>
 
       <TouchableOpacity style={styles.alarmButton} onPress={startCountdown}>
-        <Text style={styles.buttonText}>Set Alarm</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.testButton} onPress={triggerAlarm}>
-        <Text style={styles.buttonText}>Test Alarm</Text>
-      </TouchableOpacity>
+  <Text style={styles.buttonText}>Set Alarm</Text>
+</TouchableOpacity>
+<TouchableOpacity style={styles.testButton} onPress={triggerAlarm}>
+  <Text style={styles.buttonText}>Test Alarm</Text>
+</TouchableOpacity>
 
-      {countdown !== null && (
-        <Text style={styles.countdown}>
-          Time Left: {Math.floor(countdown / 3600000)}h {Math.floor((countdown % 3600000) / 60000)}m {' '}
-          {Math.floor((countdown % 60000) / 1000)}s
-        </Text>
-      )}
+{displayedAlarmTime && (
+  <Text style={styles.alarmText}>Next Alarm: {displayedAlarmTime}</Text>
+)}
+
+{countdown !== null && (
+  <Text style={styles.countdown}>
+    Alarm in: {Math.floor(countdown / 3600000)}h {Math.floor((countdown % 3600000) / 60000)}m {' '}
+    {Math.floor((countdown % 60000) / 1000)}s
+  </Text>
+)}
+
     </View>
   );
 }
@@ -182,6 +197,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 20,
   },
+  alarmText: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: '#FFF',
+  marginTop: 30,
+},
   alarmSelector: {
     backgroundColor: '#FFF',
     padding: 10,
