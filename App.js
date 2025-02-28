@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Vibration } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Audio } from 'expo-av';
 
@@ -17,7 +17,8 @@ export default function App() {
   const [ampm, setAmPm] = useState('AM');
   const [countdown, setCountdown] = useState(null);
   const [sound, setSound] = useState(null);
-  const [currentShiftIndex, setCurrentShiftIndex] = useState(0); // Track current shift time index
+  const [currentShiftIndex, setCurrentShiftIndex] = useState(0);
+  const [isVibrationEnabled, setIsVibrationEnabled] = useState(true); // Vibration toggle state
 
   const generateNumbers = (min, max) =>
     Array.from({ length: max - min + 1 }, (_, i) => (min + i).toString().padStart(2, '0'));
@@ -37,7 +38,7 @@ export default function App() {
       let nextAlarm = timesToCheck.find((t) => t > now) || timesToCheck[0];
       if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
       setCountdown(nextAlarm - now);
-      setCurrentShiftIndex(timesToCheck.indexOf(nextAlarm)); // Set the current shift index
+      setCurrentShiftIndex(timesToCheck.indexOf(nextAlarm));
     } else {
       const nextAlarm = parseTime(`${hour}:${minute} ${ampm}`);
       const now = new Date();
@@ -61,12 +62,21 @@ export default function App() {
 
   const triggerAlarm = async () => {
     try {
+      // Start vibration if enabled
+      if (isVibrationEnabled) {
+        Vibration.vibrate([1000, 1000, 1000], true); // Vibrate for 1 second, pause for 1 second, repeat
+      }
+
       const { sound } = await Audio.Sound.createAsync(require('./assets/alarm.mp3'), { shouldPlay: true });
       setSound(sound);
       await sound.playAsync();
+
       setTimeout(() => {
         sound.stopAsync();
         setSound(null);
+        if (isVibrationEnabled) {
+          Vibration.cancel(); // Stop vibration after 30 seconds
+        }
         if (mode === 'Shift') {
           // Automatically set the next shift time
           const timesToCheck = shiftTimes[shift].map(parseTime);
@@ -77,7 +87,7 @@ export default function App() {
           setCountdown(nextAlarm - now);
           setCurrentShiftIndex(nextIndex); // Update the current shift index
         }
-      }, 30000); // Stop alarm after 30 seconds
+      }, 30000); // Stop alarm and vibration after 30 seconds
     } catch (error) {
       console.error('Error playing sound:', error);
     }
@@ -96,7 +106,7 @@ export default function App() {
           <Picker.Item label="Shift Mode" value="Shift" />
         </Picker>
       </View>
-      
+
       {mode === 'Shift' ? (
         <View style={styles.shiftContainer}>
           <Picker selectedValue={shift} onValueChange={setShift} style={styles.pickerShift}>
@@ -125,13 +135,21 @@ export default function App() {
         </View>
       )}
 
+      <View style={styles.vibrationToggle}>
+        <Text style={styles.toggleText}>Vibration</Text>
+        <Switch
+          value={isVibrationEnabled}
+          onValueChange={(value) => setIsVibrationEnabled(value)}
+        />
+      </View>
+
       <TouchableOpacity style={styles.alarmButton} onPress={startCountdown}>
         <Text style={styles.buttonText}>Set Alarm</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.testButton} onPress={triggerAlarm}>
         <Text style={styles.buttonText}>Test Alarm</Text>
       </TouchableOpacity>
-      
+
       {countdown !== null && (
         <Text style={styles.countdown}>
           Time Left: {Math.floor(countdown / 3600000)}h {Math.floor((countdown % 3600000) / 60000)}m {' '}
@@ -196,6 +214,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
     marginHorizontal: 5,
+  },
+  vibrationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 20,
+    width: '100%',
+  },
+  toggleText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
   },
   alarmButton: {
     backgroundColor: '#FFF',
