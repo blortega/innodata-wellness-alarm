@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   fontSize: 20,
   fontWeight: 'bold',
   color: '#FFF',
-  marginBottom: 10,
+  marginTop: 30,
 },
   alarmSelector: {
     backgroundColor: '#FFF',
