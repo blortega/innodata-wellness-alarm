@@ -3,80 +3,60 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Audio } from 'expo-av';
 
+const shiftTimes = {
+  'Shift 1': ['08:00 AM', '10:00 AM'],
+  'Shift 2': ['04:00 PM', '08:00 PM'],
+  'Shift 3': ['02:00 AM', '04:00 AM'],
+};
+
 export default function App() {
+  const [mode, setMode] = useState('Manual');
+  const [shift, setShift] = useState('Shift 1');
   const [hour, setHour] = useState('08');
   const [minute, setMinute] = useState('30');
   const [ampm, setAmPm] = useState('AM');
   const [countdown, setCountdown] = useState(null);
   const [sound, setSound] = useState(null);
 
-  const generateNumbers = (min, max) => {
-    return Array.from({ length: max - min + 1 }, (_, i) => (min + i).toString().padStart(2, '0'));
-  };
+  const generateNumbers = (min, max) =>
+    Array.from({ length: max - min + 1 }, (_, i) => (min + i).toString().padStart(2, '0'));
 
-  const parseTime = () => {
-    let hours = parseInt(hour, 10);
-    const minutes = parseInt(minute, 10);
-  
-    // Convert AM/PM to 24-hour format
-    if (ampm === 'PM' && hours < 12) hours += 12;
-    if (ampm === 'AM' && hours === 12) hours = 0;
-  
-    const now = new Date();
-    let alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
-  
-    // If the selected time is in the past, schedule it for the next day
-    if (alarmDate <= now) {
-      alarmDate.setDate(alarmDate.getDate() + 1);
-    }
-  
-    return alarmDate;
+  const parseTime = (timeStr) => {
+    const [time, period] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return new Date(new Date().setHours(hours, minutes, 0, 0));
   };
-  
 
   const startCountdown = () => {
-    const targetTime = parseTime();
-    if (!targetTime) return;
-    setCountdown(targetTime - new Date());
+    let timesToCheck = mode === 'Shift' ? shiftTimes[shift].map(parseTime) : [parseTime(`${hour}:${minute} ${ampm}`)];
+    const now = new Date();
+    let nextAlarm = timesToCheck.find((t) => t > now) || timesToCheck[0];
+    if (nextAlarm <= now) nextAlarm.setDate(nextAlarm.getDate() + 1);
+    setCountdown(nextAlarm - now);
   };
 
   useEffect(() => {
     if (countdown === null) return;
-
     const interval = setInterval(() => {
-      const now = new Date();
-      const targetTime = parseTime();
-      if (!targetTime) {
-        clearInterval(interval);
-        setCountdown(null);
-        return;
-      }
-
-      const timeLeft = targetTime - now;
-      if (timeLeft < 1000) {
+      if (countdown <= 1000) {
         clearInterval(interval);
         triggerAlarm();
         setCountdown(null);
       } else {
-        setCountdown(timeLeft);
+        setCountdown((prev) => prev - 1000);
       }
     }, 1000);
-
     return () => clearInterval(interval);
   }, [countdown]);
 
   const triggerAlarm = async () => {
     try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('./assets/alarm.mp3'),
-        { shouldPlay: true }
-      );
+      const { sound } = await Audio.Sound.createAsync(require('./assets/alarm.mp3'), { shouldPlay: true });
       setSound(sound);
       await sound.playAsync();
-
-      setTimeout(async () => {
-        await sound.stopAsync();
-      }, 30000); // Stop the sound after 5 seconds
+      setTimeout(() => sound.stopAsync(), 30000);
     } catch (error) {
       console.error('Error playing sound:', error);
     }
@@ -89,46 +69,51 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Wellness Alarm App</Text>
-
-      {/* Always Visible Selected Time */}
-      <Text style={styles.selectedTime}>Selected Time: {hour}:{minute} {ampm}</Text>
-
-      {/* Time Picker */}
-      <View style={styles.pickerContainer}>
-        <Picker selectedValue={hour} onValueChange={setHour} style={styles.picker} itemStyle={styles.pickerItem} mode="dropdown">
-          {generateNumbers(1, 12).map((num) => (
-            <Picker.Item key={num} label={num} value={num} />
-          ))}
-        </Picker>
-
-        <Text style={styles.colon}>:</Text>
-
-        <Picker selectedValue={minute} onValueChange={setMinute} style={styles.picker} itemStyle={styles.pickerItem} mode="dropdown">
-          {generateNumbers(0, 59).map((num) => (
-            <Picker.Item key={num} label={num} value={num} />
-          ))}
-        </Picker>
-
-        <Picker selectedValue={ampm} onValueChange={setAmPm} style={styles.picker} itemStyle={styles.pickerItem} mode="dropdown">
-          <Picker.Item label="AM" value="AM" />
-          <Picker.Item label="PM" value="PM" />
+      <View style={styles.alarmSelector}>
+        <Picker selectedValue={mode} onValueChange={setMode} style={styles.pickerSelector}>
+          <Picker.Item label="Manual Mode" value="Manual" />
+          <Picker.Item label="Shift Mode" value="Shift" />
         </Picker>
       </View>
+      
+      {mode === 'Shift' ? (
+        <View style={styles.shiftContainer}>
+          <Picker selectedValue={shift} onValueChange={setShift} style={styles.pickerShift}>
+            {Object.keys(shiftTimes).map((s) => (
+              <Picker.Item key={s} label={s} value={s} />
+            ))}
+          </Picker>
+        </View>
+      ) : (
+        <View style={styles.manualContainer}>
+          <Picker selectedValue={hour} onValueChange={setHour} style={styles.picker}>
+            {generateNumbers(1, 12).map((num) => (
+              <Picker.Item key={num} label={num} value={num} />
+            ))}
+          </Picker>
+          <Text style={styles.colon}>:</Text>
+          <Picker selectedValue={minute} onValueChange={setMinute} style={styles.picker}>
+            {generateNumbers(0, 59).map((num) => (
+              <Picker.Item key={num} label={num} value={num} />
+            ))}
+          </Picker>
+          <Picker selectedValue={ampm} onValueChange={setAmPm} style={styles.picker}>
+            <Picker.Item label="AM" value="AM" />
+            <Picker.Item label="PM" value="PM" />
+          </Picker>
+        </View>
+      )}
 
-      {/* Set Alarm Button */}
       <TouchableOpacity style={styles.alarmButton} onPress={startCountdown}>
         <Text style={styles.buttonText}>Set Alarm</Text>
       </TouchableOpacity>
-
-      {/* Test Alarm Button */}
       <TouchableOpacity style={styles.testButton} onPress={triggerAlarm}>
         <Text style={styles.buttonText}>Test Alarm</Text>
       </TouchableOpacity>
-
-      {/* Countdown Display */}
+      
       {countdown !== null && (
         <Text style={styles.countdown}>
-          Time Left: {Math.floor(countdown / 3600000)}h {Math.floor((countdown % 3600000) / 60000)}m{' '}
+          Time Left: {Math.floor(countdown / 3600000)}h {Math.floor((countdown % 3600000) / 60000)}m {' '}
           {Math.floor((countdown % 60000) / 1000)}s
         </Text>
       )}
@@ -136,11 +121,10 @@ export default function App() {
   );
 }
 
-// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#007AFF', // Solid blue background
+    backgroundColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
@@ -151,25 +135,40 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginBottom: 20,
   },
-  pickerContainer: {
+  manualContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    padding: 10,
     borderRadius: 10,
     marginBottom: 20,
   },
+  alarmSelector: {
+    backgroundColor: '#FFF',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  shiftContainer: {
+    backgroundColor: '#FFF',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  pickerSelector: {
+    width: 200,
+    height: 50,
+    color: '#000',
+  },
   picker: {
     width: 110,
-    height: 80,
+    height: 50,
     color: '#000',
-    backgroundColor: 'transparent',
   },
-  pickerItem: {
-  fontSize: 30, // Increase font size for larger text
-  fontWeight: 'bold',
-  height: 80, // Increase height for larger text
+  pickerShift: {
+    width: 130,
+    height: 50,
+    color: '#000',
   },
   colon: {
     fontSize: 30,
@@ -195,12 +194,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#007AFF',
-  },
-  selectedTime: {
-    fontSize: 18,
-    color: '#FFF',
-    marginBottom: 10,
-    fontWeight: 'bold',
   },
   countdown: {
     fontSize: 18,
